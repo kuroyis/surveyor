@@ -1,0 +1,852 @@
+#include "mapselect.h"
+#include "ui_mapselect.h"
+#include"mypushbutton.h"
+#include"player.h"
+#include"iteampushbutton.h"
+#include<QPainter>
+#include<QTimer>
+
+mapselect::mapselect(QWidget *parent) :
+    QMainWindow(parent),
+    ui(new Ui::mapselect)
+{
+    ui->setupUi(this);
+    this->setFixedSize(1000,600);
+    this->setWindowIcon(QPixmap(":/image/mainmenu.png"));
+    this->setWindowTitle("surveyor trip");
+    connect(ui->actionexit,&QAction::triggered,[=](){
+        this->close();
+    });
+    //加载地图 人物
+    maps.insert(map(1).m_id,map(1));
+    maps.insert(map(2).m_id,map(2));
+    characters.insert(character(1).c_id,character(1));
+    characters.insert(character(2).c_id,character(2));
+    characters.insert(character(3).c_id,character(3));
+    for(QMap<int,map>::iterator it=this->maps.begin();it!=this->maps.end();it++)
+    {
+        mapBtn[(*it).m_id]=new myPushButton((*it).m_img);
+        mapBtn[(*it).m_id]->setParent(this);
+        mapBtn[(*it).m_id]->setIconSize(QSize(360,280));
+        mapBtn[(*it).m_id]->move(280,40);
+        mapBtn[(*it).m_id]->setCursor(Qt::ArrowCursor);
+        mapBtn[(*it).m_id]->hide();
+    }
+    for(QMap<int,character>::iterator it=this->characters.begin();it!=this->characters.end();it++)
+    {
+        characterBtn[(*it).c_id]=new myPushButton((*it).c_img);
+        characterBtn[(*it).c_id]->setParent(this);
+        characterBtn[(*it).c_id]->setIconSize(QSize(200,400));
+        characterBtn[(*it).c_id]->move(200,100);
+        characterBtn[(*it).c_id]->setCursor(Qt::ArrowCursor);
+        characterBtn[(*it).c_id]->hide();
+    }
+    iteamPushButton *iteamBtn[30];
+    int i=0;
+    for(QMap<int,iteam>::iterator it=p->iteams.begin();it!=p->iteams.end();it++,i++)//道具按钮
+    {
+        iteamBtn[i]=new iteamPushButton(*it);
+        iteamBtn[i]->setParent(ui->tab_2);
+        iteamBtn[i]->move(0+(100*i)%600,100*((100*i)/600));
+        iteamBtn[i]->show();
+        if(iteamBtn[i]->tempIteam.i_id==1)
+        {
+            iteamBtn[i]->status=1;
+            iteamBtn[i]->setStyleSheet("background:rgb(0,255,0)");
+        }
+        connect(iteamBtn[i],&QPushButton::clicked,[=]()//显示道具信息
+        {
+            if(iteamBtn[i]->status==0&&iteamnum<5)//未选中状态
+            {
+                iteamBtn[i]->setStyleSheet("background:rgb(0,255,0)");
+                ui->textEdit_2->show();
+                QString mes;
+                mes+=(*it).i_name;
+                mes+="\n             X";
+                mes+=QString::number((*it).i_num);
+                mes+="\n\n";
+                mes+=(*it).i_mes;
+                ui->textEdit_2->setText(mes);
+                iteamBtn[i]->status=1;
+                iteamnum++;
+            }
+            else if(iteamBtn[i]->status==1&&iteamBtn[i]->tempIteam.i_id!=1)//选中状态
+            {
+                iteamBtn[i]->setStyleSheet("QPushButton{border:0px}");
+                ui->textEdit_2->hide();
+                iteamBtn[i]->status=0;
+                iteamnum--;
+            }
+        });
+    }
+    rightBtn->setParent(this);
+    rightBtn->setIconSize(QSize(111,81));
+    rightBtn->move(910,240);
+    leftBtn->setParent(this);
+    leftBtn->setIconSize(QSize(111,81));
+    leftBtn->move(10,240);
+    easyBtn->setParent(this);
+    easyBtn->move(360,420);
+    normalBtn->setParent(this);
+    normalBtn->move(360,500);
+    returnBtn->setParent(this);
+    returnBtn->setIconSize(QSize(111,81));
+    returnBtn->move(900,510);
+    helpBtn->setParent(this);
+    helpBtn->move(950,30);
+    ui->lineEdit->setStyleSheet("background-color:rgba(0,0,0,0);\
+                                   font-size: 18pt;\
+                                   font-family: 'Copperplate Gothic Bold';\
+                                   font-family: '楷体'");
+    ui->lineEdit->setCursor(Qt::ArrowCursor);
+    ui->lineEdit->setTextColor(Qt::white);
+    ui->lineEdit->hide();
+    connect(helpBtn,&QPushButton::clicked,[=](){
+        QString mes;
+        if(status==2)
+        {
+            mes="每一等级可以增加一点分配点数，不同角色的可分配属性和点数不同，请酌情分配";
+        }
+        else if(status==3)
+        {
+            mes="最多可携带五个道具（包括灵魂宝石）";
+        }
+        ui->lineEdit->setText(mes);
+        ui->lineEdit->show();
+         QTimer::singleShot(5000,this,[=]()
+         {
+             ui->lineEdit->hide();
+         });
+    });
+    ui->tabWidget->setStyleSheet("QTabWidget:pane {border-top:0px solid #e8f3f9;background:  transparent; }\
+                                  QTabBar::tab{background-color:rgb(220,200,180);color:rgb(0,0,0);font:10pt '新宋体'}\
+                                  QTabBar::tab::selected{background-color:rgb(0,100,200);color:rgb(0,255,0);font:10pt '新宋体'}");
+    //这里可以自定义拉条省略代码，懒得弄了
+    ui->hs_STR->hide();
+    connect(ui->hs_STR,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[1]=characters[characternum].c_STR+ui->hs_STR->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_CON->hide();
+    connect(ui->hs_CON,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[2]=characters[characternum].c_CON+ui->hs_CON->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_SIZ->hide();
+    connect(ui->hs_SIZ,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[3]=characters[characternum].c_SIZ+ui->hs_SIZ->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_DEX->hide();
+    connect(ui->hs_DEX,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[4]=characters[characternum].c_DEX+ui->hs_DEX->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_APP->hide();
+    connect(ui->hs_APP,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[5]=characters[characternum].c_APP+ui->hs_APP->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_INT->hide();
+    connect(ui->hs_INT,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[6]=characters[characternum].c_INT+ui->hs_INT->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_POW->hide();
+    connect(ui->hs_POW,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[7]=characters[characternum].c_POW+ui->hs_POW->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_EDU->hide();
+    connect(ui->hs_EDU,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[8]=characters[characternum].c_EDU+ui->hs_EDU->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_HP->hide();
+    connect(ui->hs_HP,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[9]=characters[characternum].c_HP+ui->hs_HP->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_SAN->hide();
+    connect(ui->hs_SAN,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[10]=characters[characternum].c_SAN+ui->hs_SAN->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_LUCK->hide();
+    connect(ui->hs_LUCK,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[11]=characters[characternum].c_LUCK+ui->hs_LUCK->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_gd->hide();
+    connect(ui->hs_gd,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[12]=characters[characternum].c_gd+ui->hs_gd->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_cz->hide();
+    connect(ui->hs_cz,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[13]=characters[characternum].c_cz+ui->hs_cz->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_js->hide();
+    connect(ui->hs_js,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[14]=characters[characternum].c_js+ui->hs_js->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_lt->hide();
+    connect(ui->hs_lt,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[15]=characters[characternum].c_lt+ui->hs_lt->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_zc->hide();
+    connect(ui->hs_zc,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[16]=characters[characternum].c_zc+ui->hs_zc->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_qx->hide();
+    connect(ui->hs_qx,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[17]=characters[characternum].c_qx+ui->hs_qx->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_sb->hide();
+    connect(ui->hs_sb,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[18]=characters[characternum].c_sb+ui->hs_sb->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_xlx->hide();
+    connect(ui->hs_xlx,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[19]=characters[characternum].c_xlx+ui->hs_xlx->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_sc->hide();
+    connect(ui->hs_sc,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[20]=characters[characternum].c_sc+ui->hs_sc->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    ui->hs_jj->hide();
+    connect(ui->hs_jj,&QSlider::valueChanged,[=](){
+        characters[characternum].temp[21]=characters[characternum].c_jj+ui->hs_jj->value();
+        characters[characternum].temp[22]=characters[characternum].c_point-ui->hs_STR->value()-ui->hs_CON->value()
+                -ui->hs_SIZ->value()-ui->hs_DEX->value()-ui->hs_APP->value()-ui->hs_INT->value()-ui->hs_POW->value()
+                -ui->hs_EDU->value()-ui->hs_HP->value()-ui->hs_SAN->value()-ui->hs_LUCK->value()-ui->hs_gd->value()
+                -ui->hs_cz->value()-ui->hs_js->value()-ui->hs_lt->value()-ui->hs_zc->value()-ui->hs_qx->value()
+                -ui->hs_sb->value()-ui->hs_xlx->value()-ui->hs_sc->value()-ui->hs_jj->value();
+        reshowEvent2();
+    });
+    connect(rightBtn,&QPushButton::clicked,[=](){
+        if(status==1)
+        {
+            mapBtn[mapnum]->hide();
+            mapnum++;
+            this->reshowEvent1();
+        }
+        else if(status==2)
+        {
+            characterBtn[characternum]->hide();
+            characternum++;
+            this->reshowEvent2();
+        }
+    });
+    connect(leftBtn,&QPushButton::clicked,[=](){
+        if(status==1)
+        {
+        mapBtn[mapnum]->hide();
+        mapnum--;
+        this->reshowEvent1();
+        }
+        else if(status==2)
+        {
+            characterBtn[characternum]->hide();
+            characternum--;
+            this->reshowEvent2();
+        }
+    });
+    connect(easyBtn,&QPushButton::clicked,[=](){
+        this->levelnum=1;
+        this->status=2;
+        this->reshowEvent2();
+    });
+    connect(normalBtn,&QPushButton::clicked,[=](){
+        this->levelnum=2;
+        this->status=2;
+        this->reshowEvent2();
+    });
+    connect(returnBtn,&QPushButton::clicked,[=](){
+        if(status==1)
+        {
+            emit this->chooseBack();
+        }
+        else if(status==2)
+        {
+            this->reshowEvent1();
+            status--;
+        }
+        else if(status==3)
+        {
+            this->reshowEvent2();
+            status--;
+        }
+    });
+    connect(qrBtn,&QPushButton::clicked,[=]()
+    {
+        if(status==2)
+        {
+            status++;
+            this->reshowEvent3();
+        }
+        else if(status==3)
+        {
+            ch->c_STR=characters[characternum].temp[1];
+            ch->c_CON=characters[characternum].temp[2];
+            ch->c_SIZ=characters[characternum].temp[3];
+            ch->c_DEX=characters[characternum].temp[4];
+            ch->c_APP=characters[characternum].temp[5];
+            ch->c_INT=characters[characternum].temp[6];
+            ch->c_POW=characters[characternum].temp[7];
+            ch->c_EDU=characters[characternum].temp[8];
+            ch->c_HP=characters[characternum].temp[9];
+            ch->c_SAN=characters[characternum].temp[10];
+            ch->c_LUCK=characters[characternum].temp[11];
+            ch->c_gd=characters[characternum].temp[12];
+            ch->c_cz=characters[characternum].temp[13];
+            ch->c_js=characters[characternum].temp[14];
+            ch->c_lt=characters[characternum].temp[15];
+            ch->c_zc=characters[characternum].temp[16];
+            ch->c_qx=characters[characternum].temp[17];
+            ch->c_sb=characters[characternum].temp[18];
+            ch->c_xlx=characters[characternum].temp[19];
+            ch->c_sc=characters[characternum].temp[20];
+            ch->c_jj=characters[characternum].temp[21];
+            ch->c_id=characters[characternum].c_id;
+            ch->c_img=characters[characternum].c_img;
+            ch->c_mes=characters[characternum].c_mes;
+            ch->c_iteams=characters[characternum].c_iteams;
+            int i=0;
+            for(QMap<int,iteam>::iterator it=p->iteams.begin();it!=p->iteams.end();it++,i++)//道具按钮
+            {
+                if(iteamBtn[i]->status==1)
+                {
+                    ch->c_iteams.insert(iteamBtn[i]->tempIteam.i_id,iteamBtn[i]->tempIteam);
+                    if((*it).i_num==1){
+                    p->iteams.remove(iteamBtn[i]->tempIteam.i_id);
+                    }
+                    else
+                    {
+                        (*it).i_num--;
+                    }
+                }
+            }
+            ch->c_map = new map(mapnum);
+            ch->c_levelnum=levelnum;
+            int x=this->frameGeometry().x();
+            int y=this->frameGeometry().y();
+            this->hide();
+            newGame = new game();
+            newGame->move(x,y);
+            newGame->show();
+            newGame->joinEvent();
+            connect(newGame,&game::chooseBack1,[=](){
+                this->move(newGame->frameGeometry().x(),newGame->frameGeometry().y());
+                newGame->hide();
+                emit chooseBack2();
+            });
+        }
+    });
+    ui->textBrowser->setStyleSheet("background-color:rgba(0,0,0,0);\
+                                    font-size: 18pt;\
+                                    font-family: 'Copperplate Gothic Bold';\
+                                    font-family: '楷体'");
+    ui->textBrowser->setTextColor(Qt::white);
+    ui->textBrowser->viewport()->setCursor(Qt::ArrowCursor);
+    this->reshowEvent1();
+}
+
+mapselect::~mapselect()
+{
+    delete ui;
+}
+
+void mapselect::paintEvent(QPaintEvent *)
+{
+    QPainter painter(this);
+    QPixmap pix;
+    pix.load(":/image/saveselect.png");
+    painter.drawPixmap(0,20,this->width(),this->height()-20,pix);
+    QPen pen(QColor(255,255,255));
+    pen.setStyle(Qt::PenStyle::CustomDashLine);
+    painter.setPen(pen);
+    if(this->status==1){
+        painter.drawText(QRect(50,50,20,100),"选\n择\n场\n景");
+    }
+    else if(this->status==2){
+        painter.drawText(QRect(50,50,20,100),"选\n择\n人\n物");
+    }
+}
+
+void mapselect::reshowEvent1()
+{
+    update();
+    ui->hs_STR->hide();
+    ui->hs_CON->hide();
+    ui->hs_SIZ->hide();
+    ui->hs_DEX->hide();
+    ui->hs_APP->hide();
+    ui->hs_INT->hide();
+    ui->hs_POW->hide();
+    ui->hs_EDU->hide();
+    ui->hs_HP->hide();
+    ui->hs_SAN->hide();
+    ui->hs_LUCK->hide();
+    ui->hs_gd->hide();
+    ui->hs_cz->hide();
+    ui->hs_js->hide();
+    ui->hs_lt->hide();
+    ui->hs_zc->hide();
+    ui->hs_qx->hide();
+    ui->hs_sb->hide();
+    ui->hs_xlx->hide();
+    ui->hs_sc->hide();
+    ui->hs_jj->hide();
+    ui->tabWidget->hide();
+    ui->textEdit->hide();
+    ui->label_2->hide();
+    qrBtn->hide();
+    helpBtn->hide();
+    easyBtn->show();
+    normalBtn->show();
+    characterBtn[characternum]->hide();
+    if(mapnum==1)
+    {
+        leftBtn->hide();
+        mapBtn[mapnum]->show();
+        ui->textBrowser->setText(map(mapnum).m_mes);
+        rightBtn->show();
+    }
+    else if(mapnum==maps.size())
+    {
+        mapBtn[mapnum]->show();
+        ui->textBrowser->setText(map(mapnum).m_mes);
+        rightBtn->hide();
+        leftBtn->show();
+    }
+    else
+    {
+        mapBtn[mapnum]->show();
+        ui->textBrowser->setText(map(mapnum).m_mes);
+        rightBtn->show();
+        leftBtn->show();
+    }
+}
+
+void mapselect::reshowEvent2()
+{
+    update();
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[1]))
+    {
+        ui->hs_STR->setMaximum((characters[characternum].temp[22])+ui->hs_STR->value());
+    }
+    else
+    {
+        ui->hs_STR->setMaximum(99-characters[characternum].c_STR);
+    }
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[2]))
+    {
+        ui->hs_CON->setMaximum((characters[characternum].temp[22])+ui->hs_CON->value());
+    }
+    else
+    {
+        ui->hs_CON->setMaximum(99-characters[characternum].c_CON);
+    }
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[3]))
+    {
+        ui->hs_SIZ->setMaximum((characters[characternum].temp[22])+ui->hs_SIZ->value());
+    }
+    else
+    {
+        ui->hs_SIZ->setMaximum(99-characters[characternum].c_SIZ);
+    }
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[4]))
+    {
+        ui->hs_DEX->setMaximum((characters[characternum].temp[22])+ui->hs_DEX->value());
+    }
+    else
+    {
+        ui->hs_DEX->setMaximum(99-characters[characternum].c_DEX);
+    }
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[5]))
+    {
+        ui->hs_APP->setMaximum((characters[characternum].temp[22])+ui->hs_APP->value());
+    }
+    else
+    {
+        ui->hs_APP->setMaximum(99-characters[characternum].c_APP);
+    }
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[6]))
+    {
+        ui->hs_INT->setMaximum((characters[characternum].temp[22])+ui->hs_INT->value());
+    }
+    else
+    {
+        ui->hs_INT->setMaximum(99-characters[characternum].c_INT);
+    }
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[7]))
+    {
+        ui->hs_POW->setMaximum((characters[characternum].temp[22])+ui->hs_POW->value());
+    }
+    else
+    {
+        ui->hs_POW->setMaximum(99-characters[characternum].c_POW);
+    }
+    if(characternum==1)
+    {
+        ui->hs_STR->show();
+        ui->hs_CON->show();
+        ui->hs_SIZ->show();
+        ui->hs_DEX->show();
+        ui->hs_APP->show();
+        ui->hs_INT->show();
+        ui->hs_POW->show();
+        ui->hs_EDU->show();
+    }
+    else
+    {
+        ui->hs_STR->hide();
+        ui->hs_CON->hide();
+        ui->hs_SIZ->hide();
+        ui->hs_DEX->hide();
+        ui->hs_APP->hide();
+        ui->hs_INT->hide();
+        ui->hs_POW->hide();
+        ui->hs_EDU->hide();
+    }
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[8]))
+    {
+        ui->hs_EDU->setMaximum((characters[characternum].temp[22])+ui->hs_EDU->value());
+    }
+    else
+    {
+        ui->hs_EDU->setMaximum(99-characters[characternum].c_EDU);
+    }
+    ui->hs_HP->hide();
+    ui->hs_SAN->hide();
+    ui->hs_LUCK->hide();
+    ui->hs_gd->show();
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[12]))
+    {
+        ui->hs_gd->setMaximum((characters[characternum].temp[22])+ui->hs_gd->value());
+    }
+    else
+    {
+        ui->hs_gd->setMaximum(99-characters[characternum].c_gd);
+    }
+    ui->hs_cz->show();
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[13]))
+    {
+        ui->hs_cz->setMaximum((characters[characternum].temp[22])+ui->hs_cz->value());
+    }
+    else
+    {
+        ui->hs_cz->setMaximum(99-characters[characternum].c_cz);
+    }
+    ui->hs_js->show();
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[14]))
+    {
+        ui->hs_js->setMaximum((characters[characternum].temp[22])+ui->hs_js->value());
+    }
+    else
+    {
+        ui->hs_js->setMaximum(99-characters[characternum].c_js);
+    }
+    ui->hs_lt->show();
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[15]))
+    {
+        ui->hs_lt->setMaximum((characters[characternum].temp[22])+ui->hs_lt->value());
+    }
+    else
+    {
+        ui->hs_lt->setMaximum(99-characters[characternum].c_lt);
+    }
+    ui->hs_zc->show();
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[16]))
+    {
+        ui->hs_zc->setMaximum((characters[characternum].temp[22])+ui->hs_zc->value());
+    }
+    else
+    {
+        ui->hs_zc->setMaximum(99-characters[characternum].c_zc);
+    }
+    ui->hs_qx->show();
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[17]))
+    {
+        ui->hs_qx->setMaximum((characters[characternum].temp[22])+ui->hs_qx->value());
+    }
+    else
+    {
+        ui->hs_qx->setMaximum(99-characters[characternum].c_qx);
+    }
+    ui->hs_sb->show();
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[18]))
+    {
+        ui->hs_sb->setMaximum((characters[characternum].temp[22])+ui->hs_sb->value());
+    }
+    else
+    {
+        ui->hs_sb->setMaximum(99-characters[characternum].c_sb);
+    }
+    ui->hs_xlx->show();
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[19]))
+    {
+        ui->hs_xlx->setMaximum((characters[characternum].temp[22])+ui->hs_xlx->value());
+    }
+    else
+    {
+        ui->hs_xlx->setMaximum(99-characters[characternum].c_xlx);
+    }
+    ui->hs_sc->show();
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[20]))
+    {
+        ui->hs_sc->setMaximum((characters[characternum].temp[22])+ui->hs_sc->value());
+    }
+    else
+    {
+        ui->hs_sc->setMaximum(99-characters[characternum].c_sc);
+    }
+    ui->hs_jj->show();
+    if(characters[characternum].temp[22]<(99-characters[characternum].temp[21]))
+    {
+        ui->hs_jj->setMaximum((characters[characternum].temp[22])+ui->hs_jj->value());
+    }
+    else
+    {
+        ui->hs_jj->setMaximum(99-characters[characternum].c_jj);
+    }
+    easyBtn->hide();
+    normalBtn->hide();
+    ui->label_2->show();
+    mapBtn[mapnum]->hide();
+    helpBtn->show();
+    ui->textBrowser->hide();
+    ui->tabWidget->hide();
+    ui->textEdit->setStyleSheet("background-color:rgba(0,0,0,0);\
+                                   font-size: 18pt;\
+                                   font-family: 'Copperplate Gothic Bold';\
+                                   font-family: '楷体'");
+    ui->textEdit->viewport()->setCursor(Qt::ArrowCursor);
+    ui->textEdit->show();
+    QString mes;
+    mes+=characters[characternum].c_mes;
+    mes+="\n\n力量:";
+    mes+=QString::number(characters[characternum].temp[1]);
+    mes+="          体质:";
+    mes+=QString::number(characters[characternum].temp[2]);
+    mes+="\n体型:";
+    mes+=QString::number(characters[characternum].temp[3]);
+    mes+="          敏捷:";
+    mes+=QString::number(characters[characternum].temp[4]);
+    mes+="\n外貌:";
+    mes+=QString::number(characters[characternum].temp[5]);
+    mes+="          智力:";
+    mes+=QString::number(characters[characternum].temp[6]);
+    mes+="\n意志:";
+    mes+=QString::number(characters[characternum].temp[7]);
+    mes+="          教育:";
+    mes+=QString::number(characters[characternum].temp[8]);
+    mes+="\n体力:";
+    mes+=QString::number(characters[characternum].temp[9]);
+    mes+="          理智:";
+    mes+=QString::number(characters[characternum].temp[10]);
+    mes+="\n幸运:";
+    mes+=QString::number(characters[characternum].temp[11]);
+    mes+="          格斗:";
+    mes+=QString::number(characters[characternum].temp[12]);
+    mes+="\n操纵:";
+    mes+=QString::number(characters[characternum].temp[13]);
+    mes+="          交涉:";
+    mes+=QString::number(characters[characternum].temp[14]);
+    mes+="\n聆听:";
+    mes+=QString::number(characters[characternum].temp[15]);
+    mes+="          侦察:";
+    mes+=QString::number(characters[characternum].temp[16]);
+    mes+="\n潜行:";
+    mes+=QString::number(characters[characternum].temp[17]);
+    mes+="          闪避:";
+    mes+=QString::number(characters[characternum].temp[18]);
+    mes+="\n心理学:";
+    mes+=QString::number(characters[characternum].temp[19]);
+    mes+="        生存:";
+    mes+=QString::number(characters[characternum].temp[20]);
+    mes+="\n急救:";
+    mes+=QString::number(characters[characternum].temp[21]);
+    mes+="        点数:";
+    mes+=QString::number(characters[characternum].temp[22]);
+    ui->textEdit->setText(mes);
+    qrBtn->setParent(this);
+    qrBtn->move(820,420);
+    qrBtn->show();
+    if(characternum==1)
+    {
+        leftBtn->hide();
+        rightBtn->show();
+        characterBtn[characternum]->show();
+    }
+    else if(characternum==characters.size())
+    {
+        rightBtn->hide();
+        leftBtn->show();
+        characterBtn[characternum]->show();
+    }
+    else
+    {
+        rightBtn->show();
+        leftBtn->show();
+        characterBtn[characternum]->show();
+
+    }
+}
+
+void mapselect::reshowEvent3()
+{
+    update();
+    ui->hs_STR->hide();
+    ui->hs_CON->hide();
+    ui->hs_SIZ->hide();
+    ui->hs_DEX->hide();
+    ui->hs_APP->hide();
+    ui->hs_INT->hide();
+    ui->hs_POW->hide();
+    ui->hs_EDU->hide();
+    ui->hs_HP->hide();
+    ui->hs_SAN->hide();
+    ui->hs_LUCK->hide();
+    ui->hs_gd->hide();
+    ui->hs_cz->hide();
+    ui->hs_js->hide();
+    ui->hs_lt->hide();
+    ui->hs_zc->hide();
+    ui->hs_qx->hide();
+    ui->hs_sb->hide();
+    ui->hs_xlx->hide();
+    ui->hs_sc->hide();
+    ui->hs_jj->hide();
+    ui->label_2->hide();
+    ui->textEdit->hide();
+    rightBtn->hide();
+    leftBtn->hide();
+    easyBtn->hide();
+    normalBtn->hide();
+    mapBtn[mapnum]->hide();
+    ui->textBrowser->hide();
+    characterBtn[characternum]->hide();
+    ui->tabWidget->show();
+    helpBtn->show();
+
+    ui->textEdit_2->setStyleSheet("background-color:rgba(0,0,0,0);\
+                                   font-size: 18pt;\
+                                   font-family: 'Copperplate Gothic Bold';\
+                                   font-family: '楷体'");
+    ui->textEdit_2->setTextColor(Qt::red);
+    ui->textEdit_2->viewport()->setCursor(Qt::ArrowCursor);
+    ui->textEdit_2->hide();
+    qrBtn->setParent(ui->tabWidget);
+    qrBtn->move(620,435);
+    qrBtn->show();
+}
